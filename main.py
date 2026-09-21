@@ -447,7 +447,7 @@ class LiarDicePlugin(Star):
             "吹牛创建 / 吹牛加入 / 吹牛开始 / 吹牛看\n"
             "叫 <点数> <个数>      例：叫 4 3 表示猜 3 个 4\n"
             "开 <筹码>             例：开 100，双方各下注 100\n"
-            "加筹码 <筹码>         被开后可以加注，开骰方不能拒绝\n"
+            "加筹码 <筹码>         被开后可在原下注上追加，开骰方不能拒绝\n"
             "揭晓                  展示全场骰子并结算\n"
             "吹牛看骰 / 吹牛结束\n\n"
             f"规则：每人 {self.dice_per_player} 颗骰子，不采用 1 点万能；"
@@ -483,23 +483,23 @@ class LiarDicePlugin(Star):
                 ButtonSpec("liar_wait_end", "结束", "吹牛结束", only_for=game.owner_id),
             ]
         if game.phase == GamePhase.PLAYING:
-            actor = game.current_player()
             buttons = self._dice_buttons(game)
-            if actor is not None:
-                buttons.extend(
-                    [
+            if game.current_bid is None:
+                starter = game.starter_player
+                if starter is not None:
+                    buttons.append(
                         ButtonSpec(
                             "liar_act_bid",
                             "叫",
                             "叫 [点数] [个数]",
-                            only_for=actor.user_id,
-                        ),
-                        ButtonSpec(
-                            "liar_act_open",
-                            "开",
-                            "开 [筹码]",
-                            only_for=actor.user_id,
-                        ),
+                            only_for=starter.user_id,
+                        )
+                    )
+            else:
+                buttons.extend(
+                    [
+                        ButtonSpec("liar_act_bid", "叫", "叫 [点数] [个数]"),
+                        ButtonSpec("liar_act_open", "开", "开 [筹码]"),
                     ]
                 )
             buttons.extend(

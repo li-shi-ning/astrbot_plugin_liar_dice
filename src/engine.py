@@ -95,13 +95,41 @@ class LiarDiceGame:
         )
 
     def current_player(self) -> PlayerState | None:
-        """Return the player whose turn it is, if any."""
+        """Return the single required actor, if any.
 
-        if self.phase not in {GamePhase.PLAYING, GamePhase.CHALLENGE}:
+        The first bid is restricted to the randomly chosen starter.  During
+        the challenge phase the challenged bidder must react.  After the first
+        bid, any non-bidder may act, so there is intentionally no single
+        current actor.
+        """
+
+        if not self.players:
             return None
+        if self.phase == GamePhase.CHALLENGE and self.bidder_index is not None:
+            return self.players[self.bidder_index]
+        if self.phase == GamePhase.PLAYING and self.current_bid is None:
+            return self.players[self.current_index % len(self.players)]
+        return None
+
+    @property
+    def starter_player(self) -> PlayerState | None:
+        """Return the randomly chosen first bidder."""
+
         if not self.players:
             return None
         return self.players[self.current_index % len(self.players)]
+
+    def _player_index(self, user_id: str) -> int | None:
+        """Return the player index for *user_id*, or ``None`` if absent."""
+
+        return next(
+            (
+                index
+                for index, player in enumerate(self.players)
+                if player.user_id == user_id
+            ),
+            None,
+        )
 
     def add_player(self, user_id: str, name: str) -> None:
         """Add a player to a waiting room.
@@ -172,20 +200,21 @@ class LiarDiceGame:
         self.raise_count = 0
         self.hand_no += 1
         first = self.players[0]
-        order = "、".join(player.name for player in self.players)
         return [
             f"每人 {self.dice_per_player} 颗骰子已经掷好，本局不采用 1 点万能。",
-            f"行动顺序：{order}",
-            f"当前先手：{first.name}。",
+            f"随机先手：{first.name}。",
+            "第一手只能由先手叫骰；之后不再轮圈，其他任意玩家都可以叫骰或开骰。",
             f"请 {first.name} 发送“叫 <点数> <个数>”开始叫骰。",
         ]
 
     def place_bid(self, user_id: str, face: int, count: int) -> list[str]:
-        """Place a bid on the current turn.
+        """Place a bid.
 
-        The bid means "there are at least ``count`` dice showing ``face`` on
-        the whole table".  Later bids must be strictly greater in
-        ``(count, face)`` order.
+        The first bid is restricted to the randomly chosen starter.  After
+        that, any player except the current highest bidder may bid.  The bid
+        means "there are at least ``count`` dice showing ``face`` on the whole
+        table".  Later bids must be strictly greater in ``(count, face)``
+        order.
 
         Args:
             user_id: The acting player.
@@ -201,43 +230,52 @@ class LiarDiceGame:
 
         if self.phase != GamePhase.PLAYING:
             raise LiarDiceError("当前不能叫骰。")
-        player = self.current_player()
-        if player is None or player.user_id != user_id:
-            raise LiarDiceError("还没有轮到你叫骰。")
+        player = self.get_player(user_id)
+        if player is None:
+            raise LiarDiceError("你不在本局游戏中。")
+        if self.current_bid is None:
+            starter = self.starter_player
+            if starter is None or player.user_id != starter.user_id:
+                starter_name = starter.name if starter else "先手"
+                raise LiarDiceError(f"第一手只能由先手 {starter_name} 叫骰。")
+        elif player.user_id == self.current_bid.user_id:
+            raise LiarDiceError("不能连续叫骰，请等其他人叫骰或开骰。")
         if not 1 <= int(face) <= 6:
             raise LiarDiceError("点数必须是 1-6。")
         if not 1 <= int(count) <= self.total_dice:
             raise LiarDiceError(f"个数必须在 1-{self.total_dice} 之间。")
         if self.current_bid is not None:
-            old = (self.current_bid.count, self.current_bid.face)
-            new = (int(count), int(face))
-            if new <= old:
+            old_bid = (self.current_bid.count, self.current_bid.face)
+            new_bid = (int(count), int(face))
+            if new_bid <= old_bid:
                 raise LiarDiceError(
                     "新叫骰必须比上家大：个数更多，或个数相同但点数更大。"
                     f" 当前是 {self.current_bid.label()}。"
                 )
 
+        bidder_index = self._player_index(player.user_id)
+        if bidder_index is None:  # pragma: no cover - guarded by get_player
+            raise LiarDiceError("玩家状态异常。")
         self.current_bid = Bid(
             user_id=player.user_id,
             user_name=player.name,
             face=int(face),
             count=int(count),
         )
-        self.bidder_index = self.current_index
-        self.current_index = self._next_index(self.current_index)
-        next_player = self.current_player()
-        lines = [f"{player.name} 叫 {self.current_bid.label()}。"]
-        if next_player is not None:
-            lines.append(
-                f"轮到 {next_player.name} 行动：可以继续叫，或发送“开 <筹码>”。"
-            )
-        return lines
+        self.bidder_index = bidder_index
+        return [
+            f"{player.name} 叫 {self.current_bid.label()}。",
+            "其他任意玩家可以继续叫，或发送“开 <筹码>”；当前叫骰者不能操作。",
+        ]
 
     def open(self, user_id: str, stake: int) -> list[str]:
-        """Open the previous player's bid and start the stake-reaction phase.
+        """Open the current bid and start the stake-reaction phase.
+
+        Any player except the current highest bidder may open, regardless of
+        seating order.
 
         Args:
-            user_id: The acting player, which must be the next player.
+            user_id: The acting player.
             stake: Chips each side will put into the pot.
 
         Returns:
@@ -251,18 +289,22 @@ class LiarDiceGame:
             raise LiarDiceError("当前不能开骰。")
         if self.current_bid is None or self.bidder_index is None:
             raise LiarDiceError("还没有人叫骰，不能开。")
-        player = self.current_player()
-        if player is None or player.user_id != user_id:
-            raise LiarDiceError("还没有轮到你开骰。")
+        player = self.get_player(user_id)
+        if player is None:
+            raise LiarDiceError("你不在本局游戏中。")
+        if player.user_id == self.current_bid.user_id:
+            raise LiarDiceError("不能开自己的叫骰。")
         if int(stake) < 1:
             raise LiarDiceError("筹码必须大于 0。")
+        opener_index = self._player_index(player.user_id)
+        if opener_index is None:  # pragma: no cover - guarded by get_player
+            raise LiarDiceError("玩家状态异常。")
 
         bidder = self.players[self.bidder_index]
-        self.opener_index = self.current_index
+        self.opener_index = opener_index
         self.wager = int(stake)
         self.raise_count = 0
         self.phase = GamePhase.CHALLENGE
-        self.current_index = self.bidder_index
         return [
             f"{player.name} 开 {bidder.name} 的 {self.current_bid.label()}，"
             f"双方各下注 {self.wager} 筹码。",
@@ -281,12 +323,11 @@ class LiarDiceGame:
         return self.open(user_id, stake)
 
     def raise_stake(self, user_id: str, stake: int) -> list[str]:
-        """Increase the stake while the challenged bidder is reacting.
+        """Add more chips on top of the current challenge wager.
 
         Args:
             user_id: The challenged bidder.
-            stake: New total stake per side.  Must be greater than the current
-                wager.
+            stake: Additional chips added to both sides' current wager.
 
         Returns:
             Message lines for the raise.
@@ -295,18 +336,20 @@ class LiarDiceGame:
             LiarDiceError: If the action is not legal.
         """
 
-        if self.phase != GamePhase.CHALLENGE:
+        if self.phase != GamePhase.CHALLENGE or self.bidder_index is None:
             raise LiarDiceError("当前没有待加筹码的开骰。")
-        player = self.current_player()
-        if player is None or player.user_id != user_id:
+        player = self.players[self.bidder_index]
+        if player.user_id != user_id:
             raise LiarDiceError("只有被开的人可以加筹码。")
-        if int(stake) <= self.wager:
-            raise LiarDiceError(f"加筹码必须大于当前下注 {self.wager}。")
-        self.wager = int(stake)
+        increment = int(stake)
+        if increment <= 0:
+            raise LiarDiceError("加筹码必须大于 0。")
+        old_wager = self.wager
+        self.wager += increment
         self.raise_count += 1
         return [
-            f"{player.name} 加筹码到 {self.wager}，双方各下注 {self.wager} 筹码，"
-            "开骰方不能拒绝。",
+            f"{player.name} 加筹码 {increment}，双方下注从 {old_wager} "
+            f"提高到 {self.wager} 筹码，开骰方不能拒绝。",
             "请发送“揭晓”结算，或继续加筹码。",
         ]
 
@@ -434,19 +477,23 @@ class LiarDiceGame:
                     f"开骰：{opener.name} 开 {bidder.name}，"
                     f"双方下注 {self.wager} 筹码。"
                 )
+        if self.phase == GamePhase.PLAYING:
+            if self.current_bid is None:
+                starter = self.starter_player
+                if starter is not None:
+                    lines.append(f"等待先手 {starter.name} 叫骰。")
+            else:
+                lines.append(
+                    f"等待除 {self.current_bid.user_name} 外的任意玩家继续叫骰或开骰。"
+                )
+        elif self.phase == GamePhase.CHALLENGE and self.bidder_index is not None:
+            bidder = self.players[self.bidder_index]
+            lines.append(f"等待被开的 {bidder.name} 加筹码或揭晓。")
         lines.append("玩家：")
         for player in self.players:
             dice = f"，骰子 {player.dice_text()}" if reveal_dice and player.dice else ""
             lines.append(f"- {player.name}：{player.chips} 筹码{dice}")
-        actor = self.current_player()
-        if actor is not None:
-            lines.append(f"当前行动：{actor.name}")
         return lines
-
-    def _next_index(self, index: int) -> int:
-        """Return the next player index around the table."""
-
-        return (index + 1) % len(self.players)
 
     def _phase_label(self) -> str:
         """Return a Chinese label for the current phase."""

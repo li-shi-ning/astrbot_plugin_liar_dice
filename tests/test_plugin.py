@@ -109,7 +109,9 @@ def test_create_join_start_bid_open_raise_reveal_flow() -> None:
     actor_event.message_str = "叫 4 2"
     run(collect(plugin.bid_command(actor_event)))
 
-    opener = game.current_player()
+    opener = next(
+        player for player in game.players if player.user_id != game.current_bid.user_id
+    )
     assert opener is not None
     opener_event = owner if opener.user_id == "owner" else guest
     opener_event.message_str = "开 100"
