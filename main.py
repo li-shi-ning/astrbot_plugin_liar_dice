@@ -438,9 +438,9 @@ class LiarDicePlugin(Star):
             f"1. 每人 {self.dice_per_player} 颗骰子，开局随机掷骰。\n"
             "2. 系统随机抽取一名先手；第一手只能由先手叫骰。\n"
             "3. 第一手之后不再轮圈，除当前叫骰者外任意玩家都可以叫或开。\n"
-            "4. 叫 <点数> <个数>，例如：叫 4 3 表示猜 3 个 4。\n"
-            "5. 开 <筹码>，开骰双方各下注指定筹码。\n"
-            "6. 被开者可以 加筹码 <筹码>，在原本下注上追加，开骰方不能拒绝。\n"
+            "4. 叫骰：发送“叫 4 3”，表示猜 3 个 4。\n"
+            "5. 开骰：发送“开 100”，双方各下注 100 筹码。\n"
+            "6. 加筹码：发送“加筹码 50”，在原本下注上追加 50 筹码，开骰方不能拒绝。\n"
             "7. 揭晓后：指定点数实际数量 >= 叫数，被开者赢；否则开者赢。\n"
             "8. 本玩法不采用 1 点万能，1 只算 1。\n\n"
             "命令：吹牛创建 / 吹牛加入 / 吹牛开始 / 吹牛看 / "
@@ -484,15 +484,15 @@ class LiarDicePlugin(Star):
                         ButtonSpec(
                             "liar_act_bid",
                             "叫",
-                            "叫 [点数] [个数]",
+                            "叫 ",
                             only_for=starter.user_id,
                         )
                     )
             else:
                 buttons.extend(
                     [
-                        ButtonSpec("liar_act_bid", "叫", "叫 [点数] [个数]"),
-                        ButtonSpec("liar_act_open", "开", "开 [筹码]"),
+                        ButtonSpec("liar_act_bid", "叫", "叫 "),
+                        ButtonSpec("liar_act_open", "开", "开 "),
                     ]
                 )
             buttons.extend(
@@ -512,7 +512,7 @@ class LiarDicePlugin(Star):
                     ButtonSpec(
                         "liar_challenge_raise",
                         "加筹码",
-                        "加筹码 [筹码]",
+                        "加筹码 ",
                         only_for=bidder.user_id,
                     ),
                     ButtonSpec(
@@ -684,7 +684,7 @@ class LiarDicePlugin(Star):
             match = re.search(pattern, compact)
             if match:
                 return converter(match)
-        raise LiarDiceError("格式错误，请发送“叫 <点数> <个数>”，例如：叫 4 3。")
+        raise LiarDiceError("格式错误，请发送“叫 4 3”这样的格式，表示猜 3 个 4。")
 
     def _parse_stake(self, text: str, default: int | None = None) -> int:
         """Parse a positive chip amount from a command text."""
