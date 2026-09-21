@@ -200,12 +200,7 @@ class LiarDiceGame:
         self.raise_count = 0
         self.hand_no += 1
         first = self.players[0]
-        return [
-            f"每人 {self.dice_per_player} 颗骰子已经掷好，本局不采用 1 点万能。",
-            f"随机先手：{first.name}。",
-            "第一手只能由先手叫骰；之后不再轮圈，其他任意玩家都可以叫骰或开骰。",
-            f"请 {first.name} 发送“叫 <点数> <个数>”开始叫骰。",
-        ]
+        return [f"随机先手：{first.name}。"]
 
     def place_bid(self, user_id: str, face: int, count: int) -> list[str]:
         """Place a bid.
@@ -263,10 +258,7 @@ class LiarDiceGame:
             count=int(count),
         )
         self.bidder_index = bidder_index
-        return [
-            f"{player.name} 叫 {self.current_bid.label()}。",
-            "其他任意玩家可以继续叫，或发送“开 <筹码>”；当前叫骰者不能操作。",
-        ]
+        return [f"{player.name} 叫 {self.current_bid.label()}。"]
 
     def open(self, user_id: str, stake: int) -> list[str]:
         """Open the current bid and start the stake-reaction phase.
@@ -307,9 +299,7 @@ class LiarDiceGame:
         self.phase = GamePhase.CHALLENGE
         return [
             f"{player.name} 开 {bidder.name} 的 {self.current_bid.label()}，"
-            f"双方各下注 {self.wager} 筹码。",
-            f"{bidder.name} 可以发送“加筹码 <筹码>”提高双方下注，"
-            "或发送“揭晓”直接结算；加筹码后开骰方不能拒绝。",
+            f"双方各下注 {self.wager} 筹码。"
         ]
 
     def challenge(self, user_id: str, stake: int) -> list[str]:
@@ -344,14 +334,9 @@ class LiarDiceGame:
         increment = int(stake)
         if increment <= 0:
             raise LiarDiceError("加筹码必须大于 0。")
-        old_wager = self.wager
         self.wager += increment
         self.raise_count += 1
-        return [
-            f"{player.name} 加筹码 {increment}，双方下注从 {old_wager} "
-            f"提高到 {self.wager} 筹码，开骰方不能拒绝。",
-            "请发送“揭晓”结算，或继续加筹码。",
-        ]
+        return [f"{player.name} 加筹码 {increment}，双方下注提高到 {self.wager} 筹码。"]
 
     def reveal(self, user_id: str | None = None) -> RoundResult:
         """Reveal all dice, determine the winner, and settle chips.
@@ -477,18 +462,6 @@ class LiarDiceGame:
                     f"开骰：{opener.name} 开 {bidder.name}，"
                     f"双方下注 {self.wager} 筹码。"
                 )
-        if self.phase == GamePhase.PLAYING:
-            if self.current_bid is None:
-                starter = self.starter_player
-                if starter is not None:
-                    lines.append(f"等待先手 {starter.name} 叫骰。")
-            else:
-                lines.append(
-                    f"等待除 {self.current_bid.user_name} 外的任意玩家继续叫骰或开骰。"
-                )
-        elif self.phase == GamePhase.CHALLENGE and self.bidder_index is not None:
-            bidder = self.players[self.bidder_index]
-            lines.append(f"等待被开的 {bidder.name} 加筹码或揭晓。")
         lines.append("玩家：")
         for player in self.players:
             dice = f"，骰子 {player.dice_text()}" if reveal_dice and player.dice else ""

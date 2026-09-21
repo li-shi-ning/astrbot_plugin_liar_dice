@@ -280,16 +280,16 @@ class LiarDicePlugin(Star):
         )
         game.add_player(user_id, name)
         self.games[group_id] = game
-        if self.use_texas_holdem_chips:
-            chip_text = "官方德州每日筹码（开始游戏时读取）"
-        else:
-            chip_text = f"初始筹码 {self.starting_chips}"
+        chip_text = (
+            "官方德州每日筹码"
+            if self.use_texas_holdem_chips
+            else f"{self.starting_chips} 筹码"
+        )
         return CommandOutcome(
             text=(
                 "吹牛骰子房间已创建。\n"
-                f"每人 {self.dice_per_player} 颗骰子，{chip_text}，"
-                f"最多 {self.max_players} 人。\n"
-                "其他人发送“吹牛加入”，房主发送“吹牛开始”掷骰。"
+                f"人数：{len(game.players)}/{game.max_players}。\n"
+                f"筹码：{chip_text}。"
             ),
             game=game,
         )
@@ -302,10 +302,7 @@ class LiarDicePlugin(Star):
             raise LiarDiceError("当前没有等待加入的吹牛房间。")
         game.add_player(user_id, name)
         return CommandOutcome(
-            text=(
-                f"{name} 已加入，当前 {len(game.players)}/{game.max_players} 人。"
-                "等待房主发送“吹牛开始”。"
-            ),
+            text=f"{name} 已加入，当前 {len(game.players)}/{game.max_players} 人。",
             game=game,
         )
 
@@ -335,14 +332,9 @@ class LiarDicePlugin(Star):
         if self.texas_store is not None:
             try:
                 await self._load_texas_stacks(group_id, game)
-                lines.append("已读取官方德州每日筹码作为本局筹码。")
             except Exception as exc:  # noqa: BLE001 - keep the game playable
                 logger.exception("[LiarDice] load TexasHoldem chips failed: %s", exc)
-                lines.append(f"读取官方德州筹码失败，本局使用默认筹码：{exc}")
-        lines.append(
-            "掷骰完成。请点击下方只属于你的“看骰”按钮查看自己的骰子；"
-            "按钮内容只会在你的输入框出现，请勿发送到群里。"
-        )
+                lines.append(f"读取官方德州筹码失败：{exc}")
         return CommandOutcome(text="\n".join(lines), game=game)
 
     def _show_status(self, group_id: str) -> CommandOutcome:
@@ -366,7 +358,7 @@ class LiarDicePlugin(Star):
             raise LiarDiceError("你不在本局游戏中。")
 
         return CommandOutcome(
-            text="点击下方只属于你的骰子按钮查看；看完请勿发送到群里。",
+            text="看骰。",
             game=game,
             buttons=self._dice_buttons(game),
         )
@@ -417,7 +409,6 @@ class LiarDicePlugin(Star):
         if self.texas_store is not None:
             try:
                 await self._settle_texas_chips(group_id, result)
-                lines.append("已同步官方德州每日筹码。")
             except Exception as exc:  # noqa: BLE001 - settlement already happened
                 logger.exception("[LiarDice] settle TexasHoldem chips failed: %s", exc)
                 lines.append(f"官方德州筹码同步失败：{exc}")
@@ -443,16 +434,17 @@ class LiarDicePlugin(Star):
         """Build the help menu."""
 
         text = (
-            "吹牛骰子命令：\n"
-            "吹牛创建 / 吹牛加入 / 吹牛开始 / 吹牛看\n"
-            "叫 <点数> <个数>      例：叫 4 3 表示猜 3 个 4\n"
-            "开 <筹码>             例：开 100，双方各下注 100\n"
-            "加筹码 <筹码>         被开后可在原下注上追加，开骰方不能拒绝\n"
-            "揭晓                  展示全场骰子并结算\n"
-            "吹牛看骰 / 吹牛结束\n\n"
-            f"规则：每人 {self.dice_per_player} 颗骰子，不采用 1 点万能；"
-            "开骰时若场上点数的实际数量 >= 叫数，则被开的人赢，"
-            "否则开的人赢。"
+            "吹牛骰子帮助\n\n"
+            f"1. 每人 {self.dice_per_player} 颗骰子，开局随机掷骰。\n"
+            "2. 系统随机抽取一名先手；第一手只能由先手叫骰。\n"
+            "3. 第一手之后不再轮圈，除当前叫骰者外任意玩家都可以叫或开。\n"
+            "4. 叫 <点数> <个数>，例如：叫 4 3 表示猜 3 个 4。\n"
+            "5. 开 <筹码>，开骰双方各下注指定筹码。\n"
+            "6. 被开者可以 加筹码 <筹码>，在原本下注上追加，开骰方不能拒绝。\n"
+            "7. 揭晓后：指定点数实际数量 >= 叫数，被开者赢；否则开者赢。\n"
+            "8. 本玩法不采用 1 点万能，1 只算 1。\n\n"
+            "命令：吹牛创建 / 吹牛加入 / 吹牛开始 / 吹牛看 / "
+            "吹牛看骰 / 吹牛结束"
         )
         return CommandOutcome(text=text, buttons=self._menu_buttons())
 
@@ -465,6 +457,7 @@ class LiarDicePlugin(Star):
             ButtonSpec("liar_menu_start", "开始", "吹牛开始"),
             ButtonSpec("liar_menu_status", "状态", "吹牛看"),
             ButtonSpec("liar_menu_dice", "看骰", "吹牛看骰"),
+            ButtonSpec("liar_menu_help", "吹牛帮助", "吹牛帮助"),
             ButtonSpec("liar_menu_end", "结束", "吹牛结束"),
         ]
 

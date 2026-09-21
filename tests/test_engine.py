@@ -181,9 +181,18 @@ def test_raise_stake_adds_to_existing_wager() -> None:
 
     game.open(opener.user_id, 100)
     lines = game.raise_stake(bidder.user_id, 25)
-    assert "从 100 提高到 125" in lines[0]
+    assert "加筹码 25" in lines[0]
+    assert "提高到 125 筹码" in lines[0]
     assert game.wager == 125
 
     lines = game.raise_stake(bidder.user_id, 15)
-    assert "从 125 提高到 140" in lines[0]
+    assert "加筹码 15" in lines[0]
+    assert "提高到 140 筹码" in lines[0]
     assert game.wager == 140
+
+
+def test_start_message_contains_only_random_starter() -> None:
+    game = make_game()
+    lines = game.start_game(random.Random(0))
+    assert len(lines) == 1
+    assert lines[0].startswith("随机先手：")

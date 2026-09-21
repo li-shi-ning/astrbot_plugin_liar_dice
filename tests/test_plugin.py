@@ -139,3 +139,9 @@ def test_natural_bid_parser_accepts_count_ge_face() -> None:
     assert plugin._parse_bid("叫 3个4") == (4, 3)
     assert plugin._parse_bid("叫 4 3") == (4, 3)
     assert plugin._parse_bid("叫 4 3个") == (4, 3)
+
+
+def test_menu_buttons_include_help_button() -> None:
+    plugin = plugin_main.LiarDicePlugin(context=SimpleNamespace(), config={})
+    labels = [button.label for button in plugin._menu_buttons()]
+    assert "吹牛帮助" in labels
