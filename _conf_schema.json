@@ -1,0 +1,38 @@
+{
+  "dice_per_player": {
+    "description": "每名玩家的骰子数量。",
+    "type": "int",
+    "default": 10,
+    "hint": "默认每人 10 颗，允许 1-20 颗。"
+  },
+  "starting_chips": {
+    "description": "未启用官方德州筹码共享时，每局每名玩家的初始筹码。",
+    "type": "int",
+    "default": 1000,
+    "hint": "启用 use_texas_holdem_chips 后本项会被官方德州每日筹码替代。"
+  },
+  "max_players": {
+    "description": "每局最多玩家数。",
+    "type": "int",
+    "default": 8,
+    "hint": "至少 2 人，最多 12 人。"
+  },
+  "use_texas_holdem_chips": {
+    "description": "是否与 astrbot_plugin_official_TexasHoldem 共用每日筹码。",
+    "type": "bool",
+    "default": false,
+    "hint": "开启后，吹牛开始时会读取官方德州插件 holdem_daily_chips，结算时同步 holdem_daily_chips 和 holdem_total_delta。"
+  },
+  "texas_holdem_plugin_name": {
+    "description": "官方德州插件目录名。",
+    "type": "string",
+    "default": "astrbot_plugin_official_TexasHoldem",
+    "hint": "一般无需修改。"
+  },
+  "texas_chip_initial": {
+    "description": "官方德州每日筹码初始值。",
+    "type": "int",
+    "default": 600,
+    "hint": "与 astrbot_plugin_official_TexasHoldem 的 INITIAL_CHIPS 保持一致。"
+  }
+}

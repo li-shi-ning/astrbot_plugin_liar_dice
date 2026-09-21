@@ -1,0 +1,10 @@
+name: astrbot_plugin_liar_dice
+display_name: 吹牛骰子
+desc: QQ 官方群聊吹牛骰子插件，支持创建房间、加入、掷骰、叫数、开骰下注、加筹码与游戏结算。
+version: v1.0.0
+author: Codex
+repo: ""
+astrbot_version: ">=4.0.0"
+support_platforms:
+  - qq_official
+  - qq_official_webhook
