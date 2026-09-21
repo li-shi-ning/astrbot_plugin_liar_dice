@@ -280,10 +280,14 @@ class LiarDicePlugin(Star):
         )
         game.add_player(user_id, name)
         self.games[group_id] = game
+        if self.use_texas_holdem_chips:
+            chip_text = "官方德州每日筹码（开始游戏时读取）"
+        else:
+            chip_text = f"初始筹码 {self.starting_chips}"
         return CommandOutcome(
             text=(
                 "吹牛骰子房间已创建。\n"
-                f"每人 {self.dice_per_player} 颗骰子，初始筹码 {self.starting_chips}，"
+                f"每人 {self.dice_per_player} 颗骰子，{chip_text}，"
                 f"最多 {self.max_players} 人。\n"
                 "其他人发送“吹牛加入”，房主发送“吹牛开始”掷骰。"
             ),
@@ -482,13 +486,21 @@ class LiarDicePlugin(Star):
             actor = game.current_player()
             buttons = self._dice_buttons(game)
             if actor is not None:
-                buttons.append(
-                    ButtonSpec(
-                        "liar_act_dice",
-                        "看我的骰子",
-                        "吹牛看骰",
-                        only_for=actor.user_id,
-                    )
+                buttons.extend(
+                    [
+                        ButtonSpec(
+                            "liar_act_bid",
+                            "叫",
+                            "叫 [点数] [个数]",
+                            only_for=actor.user_id,
+                        ),
+                        ButtonSpec(
+                            "liar_act_open",
+                            "开",
+                            "开 [筹码]",
+                            only_for=actor.user_id,
+                        ),
+                    ]
                 )
             buttons.extend(
                 [
