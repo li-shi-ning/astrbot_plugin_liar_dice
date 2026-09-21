@@ -34,5 +34,11 @@
     "type": "int",
     "default": 600,
     "hint": "与 astrbot_plugin_official_TexasHoldem 的 INITIAL_CHIPS 保持一致。"
+  },
+  "max_wager": {
+    "description": "开骰与加筹码后，双方各自下注总上限。",
+    "type": "int",
+    "default": 2000,
+    "hint": "默认 2000 筹码；加筹码会在当前下注上累加，达到上限后拒绝继续加。"
   }
 }

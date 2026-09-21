@@ -71,6 +71,7 @@ class LiarDiceGame:
     dice_per_player: int = DEFAULT_DICE_PER_PLAYER
     starting_chips: int = DEFAULT_STARTING_CHIPS
     max_players: int = DEFAULT_MAX_PLAYERS
+    max_wager: int = 2000
     players: list[PlayerState] = field(default_factory=list)
     phase: GamePhase = GamePhase.WAITING
     current_index: int = 0
@@ -288,6 +289,8 @@ class LiarDiceGame:
             raise LiarDiceError("不能开自己的叫骰。")
         if int(stake) < 1:
             raise LiarDiceError("筹码必须大于 0。")
+        if int(stake) > self.max_wager:
+            raise LiarDiceError(f"双方下注总上限为 {self.max_wager} 筹码。")
         opener_index = self._player_index(player.user_id)
         if opener_index is None:  # pragma: no cover - guarded by get_player
             raise LiarDiceError("玩家状态异常。")
@@ -334,7 +337,13 @@ class LiarDiceGame:
         increment = int(stake)
         if increment <= 0:
             raise LiarDiceError("加筹码必须大于 0。")
-        self.wager += increment
+        new_wager = self.wager + increment
+        if new_wager > self.max_wager:
+            raise LiarDiceError(
+                f"双方下注总上限为 {self.max_wager} 筹码，"
+                f"当前已下注 {self.wager} 筹码。"
+            )
+        self.wager = new_wager
         self.raise_count += 1
         return [f"{player.name} 加筹码 {increment}，双方下注提高到 {self.wager} 筹码。"]
 
@@ -494,6 +503,7 @@ class LiarDiceGame:
                 "count": self.current_bid.count,
             },
             "wager": self.wager,
+            "max_wager": self.max_wager,
             "players": [
                 {
                     "user_id": player.user_id,

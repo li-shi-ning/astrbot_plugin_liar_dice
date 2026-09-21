@@ -61,6 +61,7 @@ class LiarDicePlugin(Star):
         )
         self.starting_chips = self._config_int("starting_chips", 1000, minimum=1)
         self.max_players = self._config_int("max_players", 8, minimum=2, maximum=12)
+        self.max_wager = self._config_int("max_wager", 2000, minimum=1)
         self.use_texas_holdem_chips = self._config_bool("use_texas_holdem_chips", False)
         self.texas_holdem_plugin_name = self._config_str(
             "texas_holdem_plugin_name", "astrbot_plugin_official_TexasHoldem"
@@ -277,6 +278,7 @@ class LiarDicePlugin(Star):
             dice_per_player=self.dice_per_player,
             starting_chips=self.starting_chips,
             max_players=self.max_players,
+            max_wager=self.max_wager,
         )
         game.add_player(user_id, name)
         self.games[group_id] = game
@@ -441,8 +443,9 @@ class LiarDicePlugin(Star):
             "4. 叫骰：发送“叫 4 3”，表示猜 3 个 4。\n"
             "5. 开骰：发送“开 100”，双方各下注 100 筹码。\n"
             "6. 加筹码：发送“加筹码 50”，在原本下注上追加 50 筹码，开骰方不能拒绝。\n"
-            "7. 揭晓后：指定点数实际数量 >= 叫数，被开者赢；否则开者赢。\n"
-            "8. 本玩法不采用 1 点万能，1 只算 1。\n\n"
+            f"7. 双方下注总上限为 {self.max_wager} 筹码。\n"
+            "8. 揭晓后：指定点数实际数量 >= 叫数，被开者赢；否则开者赢。\n"
+            "9. 本玩法不采用 1 点万能，1 只算 1。\n\n"
             "命令：吹牛创建 / 吹牛加入 / 吹牛开始 / 吹牛看 / "
             "吹牛看骰 / 吹牛结束"
         )

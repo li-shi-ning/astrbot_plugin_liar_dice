@@ -196,3 +196,32 @@ def test_start_message_contains_only_random_starter() -> None:
     lines = game.start_game(random.Random(0))
     assert len(lines) == 1
     assert lines[0].startswith("随机先手：")
+
+
+def test_total_wager_cap_is_2000() -> None:
+    game = make_game()
+    game.start_game(random.Random(0))
+    bidder = game.current_player()
+    assert bidder is not None
+    game.place_bid(bidder.user_id, 2, 1)
+    opener = other_player(game, bidder.user_id)
+
+    try:
+        game.open(opener.user_id, 2001)
+    except LiarDiceError as exc:
+        assert "总上限为 2000" in str(exc)
+    else:  # pragma: no cover - guard against regression
+        raise AssertionError("opening above the cap should be rejected")
+
+    game.open(opener.user_id, 1900)
+    game.raise_stake(bidder.user_id, 100)
+    assert game.wager == 2000
+
+    try:
+        game.raise_stake(bidder.user_id, 1)
+    except LiarDiceError as exc:
+        assert "总上限为 2000" in str(exc)
+    else:  # pragma: no cover - guard against regression
+        raise AssertionError("raising above the cap should be rejected")
+
+    assert game.wager == 2000
